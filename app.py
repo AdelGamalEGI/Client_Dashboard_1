@@ -82,6 +82,35 @@ def member_card(name, role):
 
 member_cards = [member_card(row['Person Name'], row['Role']) for _, row in active_members.iterrows()]
 
+# KPI Summary Card
+kpi_card = dbc.Card([
+    dbc.CardHeader("KPI Summary"),
+    dbc.CardBody([
+        dbc.Row([
+            dbc.Col([
+                html.Div([
+                    html.H2(f"{num_tasks}", className="text-primary text-center mb-0"),
+                    html.P("Tasks This Month", className="text-muted text-center")
+                ])
+            ]),
+            dbc.Col([
+                html.Div([
+                    html.H2([
+                        dbc.Badge(f"{num_open_risks}", color=risk_color, className="px-3 py-2", pill=True),
+                    ], className="text-center mb-0"),
+                    html.P("Open Risks", className="text-muted text-center")
+                ])
+            ]),
+            dbc.Col([
+                html.Div([
+                    html.H2(f"{num_open_issues}", className="text-primary text-center mb-0"),
+                    html.P("Open Issues", className="text-muted text-center")
+                ])
+            ]),
+        ], justify="center")
+    ])
+], className="p-3 shadow-sm")
+
 # Layout
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
@@ -90,21 +119,12 @@ app.layout = dbc.Container([
     html.H2('Client Dashboard', className='text-center my-4'),
 
     dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader('KPI Summary'),
-                dbc.CardBody([
-                    html.Div(f'Tasks this month: {num_tasks}', className='text-primary mb-2'),
-                    html.Div(f'Open Risks: {num_open_risks}', className=f'text-{risk_color} mb-2'),
-                    html.Div(f'Open Issues: {num_open_issues}', className='text-primary')
-                ])
-            ])
-        ], width=6),
+        dbc.Col([kpi_card], width=6),
         dbc.Col([
             dbc.Card([
                 dbc.CardHeader('Workstream Progress'),
                 dbc.CardBody([dcc.Graph(figure=ws_chart)])
-            ])
+            ], className="shadow-sm")
         ], width=6)
     ], className='mb-4'),
 
@@ -113,13 +133,13 @@ app.layout = dbc.Container([
             dbc.Card([
                 dbc.CardHeader('Tasks This Month'),
                 dbc.CardBody([task_table])
-            ])
+            ], className="shadow-sm")
         ], width=6),
         dbc.Col([
             dbc.Card([
                 dbc.CardHeader('Active Team Members'),
                 dbc.CardBody(member_cards)
-            ])
+            ], className="shadow-sm")
         ], width=6)
     ])
 ], fluid=True)
