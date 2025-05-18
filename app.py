@@ -13,6 +13,7 @@ df_workstreams = pd.read_excel(file_path, sheet_name='Workstreams')
 df_risks = pd.read_excel(file_path, sheet_name='Risk_Register')
 df_issues = pd.read_excel(file_path, sheet_name='Issue_Tracker')
 df_resources = pd.read_excel(file_path, sheet_name='Resources')
+df_budget = pd.read_excel(file_path, sheet_name='Budget_vs_Actual')
 
 # Preprocessing
 df_workstreams['Planned Start Date'] = pd.to_datetime(df_workstreams['Planned Start Date'], errors='coerce')
@@ -21,14 +22,13 @@ df_workstreams['Progress %'] = pd.to_numeric(df_workstreams['Progress %'], error
 df_resources['Allocated/Used Hours'] = pd.to_numeric(df_resources['Allocated/Used Hours'], errors='coerce')
 
 # Calculate Planned % based on time elapsed
-today = pd.Timestamp(datetime.today().date())
+today = pd.Timestamp.today()
+start_month = today.replace(day=1)
+end_month = (start_month + pd.offsets.MonthEnd(1)).date()
+
 duration = (df_workstreams['Planned End Date'] - df_workstreams['Planned Start Date']).dt.days
 elapsed = (today - df_workstreams['Planned Start Date']).dt.days
 df_workstreams['Planned %'] = ((elapsed / duration) * 100).clip(lower=0, upper=100).fillna(0)
-
-# Timeframe
-start_month = pd.to_datetime(datetime.today().replace(day=1))
-end_month = pd.to_datetime(start_month + pd.offsets.MonthEnd(1))
 
 # KPI Summary
 tasks_this_month = df_workstreams[(df_workstreams['Planned Start Date'] <= end_month) & (df_workstreams['Planned End Date'] >= start_month)]
@@ -38,7 +38,6 @@ num_open_issues = open_issues.shape[0]
 open_risks = df_risks[df_risks['Status'].str.strip().str.lower() == 'open']
 num_open_risks = open_risks.shape[0]
 
-# Risk color logic
 if 'High' in open_risks['Risk Score'].values:
     risk_color = 'danger'
 elif 'Medium' in open_risks['Risk Score'].values:
@@ -65,12 +64,25 @@ ws_chart.update_layout(barmode='overlay', title='Workstream Progress', height=30
 # Task table
 task_table = dbc.Table.from_dataframe(tasks_this_month[['Activity Name', 'Progress %']], striped=True, bordered=True, hover=True)
 
-# Active team members based on tasks scheduled this month
-if 'Assigned To' in df_workstreams.columns:
-    active_names = tasks_this_month['Assigned To'].dropna().unique()
-    active_members = df_resources[df_resources['Person Name'].isin(active_names)]
-else:
-    active_members = df_resources.iloc[0:0]  # empty fallback
+# Determine active team members from Budget_vs_Actual linked with Workstreams
+df_merged = df_budget.merge(
+    df_workstreams[['Activity Name', 'Planned Start Date', 'Planned End Date']],
+    left_on='Task Name', right_on='Activity Name', how='left'
+)
+
+df_merged['Planned Start Date'] = pd.to_datetime(df_merged['Planned Start Date'], errors='coerce')
+df_merged['Planned End Date'] = pd.to_datetime(df_merged['Planned End Date'], errors='coerce')
+
+active_rows = df_merged[
+    (df_merged['Planned Start Date'] <= end_month) & (df_merged['Planned End Date'] >= start_month)
+]
+
+assigned1 = active_rows['Assigned Person 1'].dropna().str.strip().str.lower()
+assigned2 = active_rows['Assigned Person 2'].dropna().str.strip().str.lower()
+active_names = pd.concat([assigned1, assigned2]).unique()
+
+df_resources['Person Name Lower'] = df_resources['Person Name'].str.strip().str.lower()
+active_members = df_resources[df_resources['Person Name Lower'].isin(active_names)]
 
 # Photo map
 photo_mapping = {
@@ -91,7 +103,6 @@ def member_card(name, role):
         img_tag = html.Img(src=f"/assets/{img_file}", height="45px", style={'borderRadius': '50%'})
     else:
         img_tag = html.Div("👤", style={'fontSize': '2rem'})
-
     return dbc.Card(
         dbc.Row([
             dbc.Col(img_tag, width='auto'),
@@ -140,7 +151,6 @@ server = app.server
 
 app.layout = dbc.Container([
     html.H2('Client Dashboard', className='text-center my-4'),
-
     dbc.Row([
         dbc.Col([kpi_card], width=6),
         dbc.Col([
@@ -150,7 +160,6 @@ app.layout = dbc.Container([
             ], className="shadow-sm")
         ], width=6)
     ], className='mb-4'),
-
     dbc.Row([
         dbc.Col([
             dbc.Card([
