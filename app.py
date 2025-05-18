@@ -23,8 +23,8 @@ df_resources['Allocated/Used Hours'] = pd.to_numeric(df_resources['Allocated/Use
 
 # Calculate Planned % based on time elapsed
 today = pd.Timestamp.today()
-start_month = today.replace(day=1)
-end_month = (start_month + pd.offsets.MonthEnd(1)).date()
+start_month = pd.Timestamp(today.replace(day=1))
+end_month = start_month + pd.offsets.MonthEnd(1)
 
 duration = (df_workstreams['Planned End Date'] - df_workstreams['Planned Start Date']).dt.days
 elapsed = (today - df_workstreams['Planned Start Date']).dt.days
