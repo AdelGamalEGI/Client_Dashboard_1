@@ -67,7 +67,7 @@ task_table = dbc.Table.from_dataframe(tasks_this_month[['Activity Name', 'Progre
 # Determine active team members from Budget_vs_Actual linked with Workstreams
 df_merged = df_budget.merge(
     df_workstreams[['Activity Name', 'Planned Start Date', 'Planned End Date']],
-    left_on='Task Name', right_on='Activity Name', how='left'
+    on='Activity Name', how='left'
 )
 
 df_merged['Planned Start Date'] = pd.to_datetime(df_merged['Planned Start Date'], errors='coerce')
