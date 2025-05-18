@@ -33,9 +33,9 @@ end_month = pd.to_datetime(start_month + pd.offsets.MonthEnd(1))
 # KPI Summary
 tasks_this_month = df_workstreams[(df_workstreams['Planned Start Date'] <= end_month) & (df_workstreams['Planned End Date'] >= start_month)]
 num_tasks = tasks_this_month.shape[0]
-open_issues = df_issues[df_issues['Status'].str.lower() == 'open']
+open_issues = df_issues[df_issues['Status'].str.strip().str.lower() == 'open']
 num_open_issues = open_issues.shape[0]
-open_risks = df_risks[df_risks['Status'].str.lower() == 'open']
+open_risks = df_risks[df_risks['Status'].str.strip().str.lower() == 'open']
 num_open_risks = open_risks.shape[0]
 
 # Risk color logic
@@ -65,13 +65,36 @@ ws_chart.update_layout(barmode='overlay', title='Workstream Progress', height=30
 # Task table
 task_table = dbc.Table.from_dataframe(tasks_this_month[['Activity Name', 'Progress %']], striped=True, bordered=True, hover=True)
 
-# Active team members (assigned to tasks this month)
-active_members = df_resources[df_resources['Allocated/Used Hours'] > 0][['Person Name', 'Role']].dropna()
+# Active team members based on tasks scheduled this month
+if 'Assigned To' in df_workstreams.columns:
+    active_names = tasks_this_month['Assigned To'].dropna().unique()
+    active_members = df_resources[df_resources['Person Name'].isin(active_names)]
+else:
+    active_members = df_resources.iloc[0:0]  # empty fallback
+
+# Photo map
+photo_mapping = {
+    "Lavjit Singh": "lavjit.jpg",
+    "Adel Gamal": "adel.jpg",
+    "Don Sunny": "don.jpg",
+    "Ganesh Shinde": "ganesh.jpg",
+    "Samuel Ezannaya": "samuel.jpg",
+    "Stefan Stroobants": "stefan.jpg",
+    "Jaco Roesch": "jaco.jpg",
+    "Gustav Brand": "gustav.jpg",
+    "Seyed Khali": "seyed.jpg"
+}
 
 def member_card(name, role):
+    img_file = photo_mapping.get(name)
+    if img_file:
+        img_tag = html.Img(src=f"/assets/{img_file}", height="45px", style={'borderRadius': '50%'})
+    else:
+        img_tag = html.Div("👤", style={'fontSize': '2rem'})
+
     return dbc.Card(
         dbc.Row([
-            dbc.Col(html.Div("👷", style={'fontSize': '2rem'}), width='auto'),
+            dbc.Col(img_tag, width='auto'),
             dbc.Col([
                 html.Div(html.Strong(name)),
                 html.Div(html.Small(role, className='text-muted'))
@@ -144,7 +167,6 @@ app.layout = dbc.Container([
     ])
 ], fluid=True)
 
-# Render-compatible port binding
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8050))
     app.run_server(host='0.0.0.0', port=port)
